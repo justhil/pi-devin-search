@@ -1,0 +1,9 @@
+node_modules/
+ref/
+.pi/
+coverage/
+dist/
+.env
+.env.*
+*.log
+*.tgz
