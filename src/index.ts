@@ -15,8 +15,8 @@ import {
 import { searchDevin, type DevinSearchResponse } from "./client.js";
 
 const SEARCH_PARAMS = Type.Object({
-	query: Type.String({ minLength: 1, description: "Focused web search query." }),
-	limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Maximum results. Defaults to 5." })),
+	query: Type.String({ minLength: 1, description: "Focused, self-contained web search query." }),
+	limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Maximum results to return. Defaults to 5; maximum 10." })),
 	domain: Type.Optional(Type.String({ description: "Optional domain restriction, for example github.com." })),
 });
 
@@ -322,17 +322,13 @@ async function runConfigWizard(args: string, ctx: UiContext): Promise<void> {
 export default function piDevinSearchExtension(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "devin_search",
-		label: "Quick Source Search",
-		description: `Quickly find precise web sources and return up to 10 results with titles, URLs, and available summaries.
-
-Use it for fast source discovery: locating an official page, repository, issue, release note, product page, or a small set of relevant links. Write a short, specific query and use domain when the target website is known. Prefer this for quick lookups and source finding; use search when the task needs a synthesized answer, broad research, comparison, or multi-source analysis.`,
-		promptSnippet: "Fast, precise source discovery for locating relevant web pages, repositories, issues, release notes, and official links.",
+		label: "Web Source Search",
+		description: "Search the web for a focused query and return up to 10 results with titles, URLs, and available summaries. Use it whenever current external sources or direct source URLs can support the task, including official pages, documentation, repositories, issues, release notes, product pages, and other web resources. Results are source records rather than a synthesized multi-source report.",
+		promptSnippet: "Find web sources for a focused query and return titles, URLs, and available summaries.",
 		promptGuidelines: [
-			"Prefer devin_search for quick lookups and precise source discovery when the goal is to find relevant URLs rather than produce a researched synthesis.",
-			"Use a short, specific query. Add domain when an official site, documentation host, or repository platform is known.",
-			"Use search instead when the task requires a synthesized answer, broad exploration, comparison, time-aware research, or evidence combined across multiple sources.",
-			"Use docs_search instead for detailed SDK, API, framework, migration, or versioned documentation questions. Use web_fetch when a concrete URL must be read or verified.",
-			"Treat returned summaries as previews and inspect important URLs before relying on page-level details.",
+			"Use devin_search whenever current external sources or direct source URLs can support the task.",
+			"Write a focused, self-contained query; set domain when the target website is known.",
+			"Treat result summaries as previews and inspect the returned URL before relying on detailed page claims.",
 		],
 		parameters: SEARCH_PARAMS,
 		async execute(_toolCallId, params: SearchParams, signal, onUpdate, ctx) {
