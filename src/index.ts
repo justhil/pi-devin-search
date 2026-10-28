@@ -32,7 +32,9 @@ type SearchDetails = {
 
 type UiContext = ExtensionCommandContext & { hasUI?: boolean };
 
-const MAX_OUTPUT_CHARS = 48_000;
+const MAX_OUTPUT_CHARS = 8_000;
+const MAX_RESULT_SUMMARY_CHARS = 400;
+const MAX_UPSTREAM_SUMMARY_CHARS = 600;
 let statusSequence = 0;
 let activeStatus = 0;
 
@@ -74,15 +76,20 @@ function credentialError(credential: ResolvedCredential): Error {
 	);
 }
 
+function shortSummary(value: string, maxChars: number): string {
+	const text = value.replace(/\s+/g, " ").trim();
+	return text.length > maxChars ? `${text.slice(0, maxChars)}…` : text;
+}
+
 function formatSearchResponse(query: string, response: DevinSearchResponse): string {
 	if (response.results.length === 0) return `No Devin search results for: ${query}`;
 	const lines = [`Devin search results for: ${query}`, ""];
 	for (const [index, result] of response.results.entries()) {
 		lines.push(`${index + 1}. ${result.title}`, `   ${result.url}`);
-		if (result.summary) lines.push(`   ${result.summary}`);
+		if (result.summary) lines.push(`   ${shortSummary(result.summary, MAX_RESULT_SUMMARY_CHARS)}`);
 		lines.push("");
 	}
-	if (response.summary) lines.push("Upstream summary:", response.summary, "");
+	if (response.summary) lines.push("Upstream summary:", shortSummary(response.summary, MAX_UPSTREAM_SUMMARY_CHARS), "");
 	if (response.webSearchUrl) lines.push(`Search URL: ${response.webSearchUrl}`);
 	const text = lines.join("\n").trim();
 	return text.length <= MAX_OUTPUT_CHARS
@@ -330,6 +337,12 @@ export default function piDevinSearchExtension(pi: ExtensionAPI) {
 			"Write a focused, self-contained query; set domain when the target website is known.",
 			"Treat result summaries as previews and inspect the returned URL before relying on detailed page claims.",
 		],
+		...{ outputSchema: Type.Object({
+			query: Type.String(),
+			results: Type.Array(Type.Object({ title: Type.String(), url: Type.String(), summary: Type.String() })),
+			summary: Type.Optional(Type.String()),
+			webSearchUrl: Type.Optional(Type.String()),
+		}) },
 		parameters: SEARCH_PARAMS,
 		async execute(_toolCallId, params: SearchParams, signal, onUpdate, ctx) {
 			const startedAt = Date.now();
@@ -340,6 +353,12 @@ export default function piDevinSearchExtension(pi: ExtensionAPI) {
 				finishStatus(`devin-search: ${response.results.length} result(s)`);
 				return {
 					content: [{ type: "text", text: formatSearchResponse(params.query, response) }],
+					structuredContent: {
+						query: params.query,
+						results: response.results.map((result) => ({ ...result, summary: shortSummary(result.summary, MAX_RESULT_SUMMARY_CHARS) })),
+						...(response.summary ? { summary: shortSummary(response.summary, MAX_UPSTREAM_SUMMARY_CHARS) } : {}),
+						...(response.webSearchUrl ? { webSearchUrl: response.webSearchUrl } : {}),
+					},
 					details: {
 						query: params.query,
 						resultCount: response.results.length,

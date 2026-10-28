@@ -96,6 +96,35 @@ test("devin-search-config import persists a DB credential after TUI confirmation
 	}
 });
 
+test("devin_search bounds long summaries without hiding later results", async () => {
+	const pi = new FakePi();
+	extension(pi as unknown as ExtensionAPI);
+	const originalFetch = globalThis.fetch;
+	const originalKey = process.env.DEVIN_SEARCH_API_KEY;
+	process.env.DEVIN_SEARCH_API_KEY = "devin-session-token$test";
+	globalThis.fetch = async () => new Response(JSON.stringify({
+		results: [
+			{ title: "First", url: "https://example.test/first", summary: "long ".repeat(2000) },
+			{ title: "Second", url: "https://example.test/second", summary: "Relevant evidence" },
+		],
+		summary: "aggregate ".repeat(1000),
+	}), { status: 200, headers: { "content-type": "application/json" } });
+	try {
+		const result = await pi.tools.get("devin_search")!.execute("call", { query: "test" }, undefined, undefined, context());
+		const output = result.content[0]?.text ?? "";
+		assert.match(output, /Second/);
+		assert.match(output, /Relevant evidence/);
+		assert.ok(output.length < 2000);
+		const structured = (result as unknown as { structuredContent: { results: Array<{ title: string; summary: string }> } }).structuredContent;
+		assert.equal(structured.results[1]?.title, "Second");
+		assert.ok(structured.results[0]!.summary.length <= 401);
+	} finally {
+		globalThis.fetch = originalFetch;
+		if (originalKey === undefined) delete process.env.DEVIN_SEARCH_API_KEY;
+		else process.env.DEVIN_SEARCH_API_KEY = originalKey;
+	}
+});
+
 test("devin_search resolves env credential and formats upstream results", async () => {
 	const pi = new FakePi();
 	extension(pi as unknown as ExtensionAPI);

@@ -97,6 +97,8 @@ DEVIN_SEARCH_DB_PATH=/path/to/state.vscdb
 - `limit`：可选，1–10，默认 5
 - `domain`：可选，限制域名，例如 `github.com`
 
+结果摘要默认每条最多约 400 字符，上游汇总最多约 600 字符；摘要是预览，核实细节请读取来源网页。新版 pi 的 `codemode` 可直接获取结构化结果并筛选。
+
 ## 开发验证
 
 ```bash
